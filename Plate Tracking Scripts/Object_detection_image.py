@@ -24,6 +24,31 @@ import numpy as np
 import tensorflow as tf
 import sys
 
+
+def isEnemy(plateImg, enemyTeam):
+
+    # define the list of boundaries for what defines the colours red and blue
+    # current boundaries visualized: https://i.imgur.com/y1Eo0yj.png
+    boundaries = [
+        ([17, 15, 100], [50, 56, 200]),  # red boundaries
+        ([86, 31, 4], [220, 88, 50])    # blue boundaries
+    ]
+
+    redLower = np.array(boundaries[0][0], dtype="uint8")
+    redUpper = np.array(boundaries[0][1], dtype="uint8")
+    redMask = cv2.inRange(plateImg, redLower, redUpper)
+
+    blueLower = np.array(boundaries[1][0], dtype="uint8")
+    blueUpper = np.array(boundaries[1][1], dtype="uint8")
+    blueMask = cv2.inRange(plateImg, blueLower, blueUpper)
+
+    if np.sum(redMask) > np.sum(blueMask):
+        colour = "red"
+    else:
+        colour = "blue"
+    return colour == enemyTeam
+
+
 # This is needed since the notebook is stored in the object_detection folder.
 sys.path.append("..")
 
@@ -32,6 +57,8 @@ sys.path.append("..")
 # Name of the directory containing the object detection module we're using
 MODEL_NAME = 'inference_graph'
 IMAGE_NAME = 'test_images/clip_28_frame.jpg'
+
+ENEMY_TEAM = "blue"
 
 # Grab path to current working directory
 CWD_PATH = os.getcwd()
@@ -107,22 +134,42 @@ vis_util.visualize_boxes_and_labels_on_image_array(
     np.squeeze(scores),
     category_index,
     use_normalized_coordinates=True,
-    line_thickness=8,
+    line_thickness=4,
     min_score_thresh=0.60)
 
-bestBox = np.squeeze(boxes)[0, :]
-imgHeight = image.shape[0]
-imgWidth = image.shape[1]
+boxes = np.squeeze(boxes)
+
+for a in range(0, len(boxes), -1):
+    if np.squeeze(scores)[a] < 0.8:
+        boxes.pop(a)
+    else:
+        break
+
+numboxes = 5 if len(boxes) >= 5 else len(boxes)
+
+if numboxes != 0:
+    for plate in boxes:
+        imgHeight = image.shape[0]
+        imgWidth = image.shape[1]
+        xmin = int(plate[1]*imgWidth)
+        ymin = int(plate[0]*imgHeight)
+        xmax = int(plate[3]*imgWidth)
+        ymax = int(plate[2]*imgHeight)
+        print("xmin = %d, ymin = %d\nxmax = %d, ymax = %d" %
+              (xmin, ymin, xmax, ymax))
+        plateImg = image[ymin:ymax, xmin:xmax]
+
+        if(isEnemy(plateImg, ENEMY_TEAM)):
+            print("Is an enemy!")
+            break
+        else:
+            print("Not an enemy")
 
 
-xmin = int(bestBox[1]*imgWidth)
-ymin = int(bestBox[0]*imgHeight)
-xmax = int(bestBox[3]*imgWidth)
-ymax = int(bestBox[2]*imgHeight)
+# display pink dot at the specified coordinates for testing
+# cv2.circle(image, (xmin, ymin), 5, (233, 68, 255), -1)
 
-print("xmin = %d, ymin = %d\nxmax = %d, ymax = %d" % (xmin, ymin, xmax, ymax))
-
-cv2.circle(image, (xmin, ymin), 5, (233, 68, 255), -1)
+cv2.rectangle(image, (xmin,ymin), (xmax,ymax), (0, 0, 255), thickness=2)
 
 # All the results have been drawn on image. Now display the image.
 cv2.imshow('Object detector', image)
