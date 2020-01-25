@@ -96,18 +96,19 @@ num_detections = detection_graph.get_tensor_by_name('num_detections:0')
 
 # construct argument parser and parse teh arguments
 ap = argparse.ArgumentParser()
-ap.add_argument("-v", "--video", type=str, help = "path to video")
-ap.add_argument("-t", "--tracker", type=str, default="kcf", help="tracker type")
+ap.add_argument("-v", "--video", type=str, help="path to video")
+ap.add_argument("-t", "--tracker", type=str,
+                default="kcf", help="tracker type")
 args = vars(ap.parse_args())
-#OpenCV object tracker dictionary
+# OpenCV object tracker dictionary
 OPENCV_OBJECT_TRACKERS = {
     "csrt": cv2.TrackerCSRT_create,
     "kcf": cv2.TrackerKCF_create,
     "boosting": cv2.TrackerBoosting_create,
     "mil": cv2.TrackerMIL_create,
-	"tld": cv2.TrackerTLD_create,
-	"medianflow": cv2.TrackerMedianFlow_create,
-	"mosse": cv2.TrackerMOSSE_create
+    "tld": cv2.TrackerTLD_create,
+    "medianflow": cv2.TrackerMedianFlow_create,
+    "mosse": cv2.TrackerMOSSE_create
 }
 
 # grab the appropriate object tracker using our dictionary of
@@ -147,12 +148,24 @@ while(video.isOpened()):
         np.squeeze(scores),
         category_index,
         use_normalized_coordinates=True,
-        line_thickness=8,
+        line_thickness=4,
         min_score_thresh=0.60)
+
     
-    bestBox = np.squeeze(boxes)[0,:]
-    imgHeight= frame.shape[0]
-    imgWidth= frame.shape[1]
+    bestBox = np.squeeze(boxes)[0, :]
+    imgHeight = frame.shape[0]
+    imgWidth = frame.shape[1]
+
+    xmin = int(bestBox[1]*imgWidth)
+    ymin = int(bestBox[0]*imgHeight)
+    xmax = int(bestBox[3]*imgWidth)
+    ymax = int(bestBox[2]*imgHeight)
+
+    print("xmin = %d, ymin = %d\nxmax = %d, ymax = %d" %
+          (xmin, ymin, xmax, ymax))
+
+    # draw circle at point on bestplate
+    cv2.circle(frame, (xmin, ymin), 5, (233, 68, 255), -1)
 
     # check to see if we are currently tracking an object
     if initBB is not None:
@@ -162,7 +175,7 @@ while(video.isOpened()):
         if success:
             (x, y, w, h) = [int(v) for v in box]
             cv2.rectangle(frame, (x, y), (x + w, y + h),
-                (0, 255, 0), 2)
+                          (0, 0, 255), 2)
         # update the FPS counter
         fps.update()
         fps.stop()
@@ -173,21 +186,22 @@ while(video.isOpened()):
             ("Tracker", args["tracker"]),
             ("Success", "Yes" if success else "No"),
             ("FPS", "{:.2f}".format(fps.fps())),
-	    ]
- 
+        ]
+
         # loop over the info tuples and draw them on our frame
         for (i, (k, v)) in enumerate(info):
             text = "{}: {}".format(k, v)
             cv2.putText(frame, text, (10, imgHeight - ((i * 20) + 20)),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-    else: 
-        initBB = (int(imgWidth*bestBox[1]), int(imgHeight*bestBox[0]), int(imgWidth*(bestBox[3]-bestBox[1])), int(imgHeight*(bestBox[2]-bestBox[0])))
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+    else:
+        initBB = (int(imgWidth*bestBox[1]), int(imgHeight*bestBox[0]), int(
+            imgWidth*(bestBox[3]-bestBox[1])), int(imgHeight*(bestBox[2]-bestBox[0])))
         # start OpenCV object tracker using the supplied bounding box
-		# coordinates, then start the FPS throughput estimator as well
+        # coordinates, then start the FPS throughput estimator as well
         tracker.init(frame, initBB)
         fps = FPS().start()
 
-    cv2.rectangle(frame,(int(imgWidth*bestBox[1]), int(imgHeight*bestBox[0])), (int(imgWidth*bestBox[3]), int(imgHeight*bestBox[2])),(100,100,100),3)
+    # cv2.rectangle(frame,(int(imgWidth*bestBox[1]), int(imgHeight*bestBox[0])), (int(imgWidth*bestBox[3]), int(imgHeight*bestBox[2])),(100,100,100),3)
     # write frame to output video file
     out.write(frame)
     # All the results have been drawn on the frame, so it's time to display it.
@@ -200,9 +214,4 @@ while(video.isOpened()):
 # Clean up
 video.release()
 out.release()
-cv2.destroyAllWindows()    
-    
-
-    
-
-
+cv2.destroyAllWindows()
