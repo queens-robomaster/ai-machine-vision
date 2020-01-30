@@ -36,7 +36,7 @@ sys.path.append("..")
 
 # Import utilites
 
-ENEMY_TEAM = "red"
+ENEMY_TEAM = "blue"
 
 # colour thresholding
 
@@ -67,7 +67,7 @@ def isEnemy(plateImg, enemyTeam):
 
 # Name of the directory containing the object detection module we're using
 MODEL_NAME = 'inference_graph'
-VIDEO_NAME = 'test_images/clip_39.mp4'
+VIDEO_NAME = 'test_images/clip_19.mp4'
 
 # Grab path to current working directory
 CWD_PATH = os.getcwd()
@@ -151,11 +151,13 @@ fps = None
 
 # Open video file
 video = cv2.VideoCapture(PATH_TO_VIDEO)
-out = cv2.VideoWriter('test_images/clipBOXED_39.mp4',
+out = cv2.VideoWriter('test_images/clipBOXED_19.mp4',
                       cv2.VideoWriter_fourcc('F', 'M', 'P', '4'), 30.0, (1280, 720))
 
 past_centroidX = 10000
 past_centroidY = 10000
+
+frameCount = 0
 
 while(video.isOpened()):
 
@@ -177,22 +179,13 @@ while(video.isOpened()):
         np.squeeze(scores),
         category_index,
         use_normalized_coordinates=True,
-        line_thickness=4,
-        min_score_thresh=0.60)
+        line_thickness=2,
+        min_score_thresh=0.80)
 
-    # bestBox = np.squeeze(boxes)[0, :]
     # this segment of code will obtain the boxes of highest confidence in the frame and check each box to see if it is an enemy, stop looping once highest confidence enemy plate is found
     # remove one dimensionality
     boxes = np.squeeze(boxes)
     scores = np.squeeze(scores)
-
-    # loop through each box end->start and pop (remove) any elements less than 80 confidence
-    for a in range(0, len(boxes), -1):
-        if scores[a] < 0.8:
-            boxes.pop(a)
-            scores.pop(a)
-        else:
-            break
 
     imgHeight = frame.shape[0]
     imgWidth = frame.shape[1]
@@ -204,6 +197,7 @@ while(video.isOpened()):
     # will hold score, area, confidence, plate info (xmin,ymin,xmax,ymax)
     plates = []
 
+    # collect all data into a plates array
     for i in range(0, len(boxes)):
         xmin = int(boxes[i][1]*imgWidth)
         ymin = int(boxes[i][0]*imgHeight)
@@ -212,78 +206,85 @@ while(video.isOpened()):
 
         area = (xmax-xmin)*(ymax-ymin)
         confidence = scores[i]
-        score = scores[i]*area
+        score = confidence*area
         plate = [xmin, ymin, xmax, ymax]
-        plates.append([score, area, confidence, plate]) 
+        plates.append([score, area, confidence, plate])
 
-
-    # PLATES ARRAY (score, area, confidence, info[xmin,ymin,xmax,ymax])
+    # PLATES NumPy ARRAY (score, area, confidence, info[xmin,ymin,xmax,ymax])
     plates = np.asarray(plates)
 
+    # using logical indexing, sort out all plates with confidence less than a certain amount
+    plates = plates[plates[:, 2] > 0.8]
+
     # sort the plates array in descending order according to their "score" (area*confidence)
-    platesSorted = np.sort(plates, axis=0)[::-1]
-    print(platesSorted)
+    plates = np.sort(plates, axis=0)[::-1]
+    print(plates)
 
-    # numboxes is equal to 5 maximum (we will only check the first 5 boxes) or equal to the amount if there is less than 5.
-    # this will limit how many boxes we will check with highest confidence
-    numboxes = 5 if len(boxes) >= 5 else len(boxes)
+    bestPlate = None
 
-    if numboxes != 0:
-        for plate in platesSorted:
+    if (len(plates) != 0):
+        for plate in plates:
             xmin = plate[3][0]
             ymin = plate[3][1]
             xmax = plate[3][2]
             ymax = plate[3][3]
-            print("xmin = %d, ymin = %d\nxmax = %d, ymax = %d" %
-                  (xmin, ymin, xmax, ymax))
+            # print("xmin = %d, ymin = %d\nxmax = %d, ymax = %d" % (xmin, ymin, xmax, ymax))
+
             # extract the plate as an imageusing its coordinates, will be passed onto isEnemy() to colour threshold
             plateImg = frame[ymin:ymax, xmin:xmax]
 
             # specific to colour thresholding
             if(isEnemy(plateImg, ENEMY_TEAM)):
                 print("Is an enemy!")
+                cv2.rectangle(frame, (xmin, ymin), (xmax, ymax),
+                              (0, 0, 255), thickness=2)
+                bestPlate = plate
+                # # display pink dot at the specified coordinates for testing
+                # cv2.circle(frame, (xmin, ymin), 5, (233, 68, 255), -1)
                 break
             else:
+                bestPlate = None
                 print("Not an enemy")
 
     # display pink dot at the specified coordinates for testing
     # cv2.circle(image, (xmin, ymin), 5, (233, 68, 255), -1)
 
-    cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (0, 0, 255), thickness=2)
+  
 
     # # check to see if we are currently tracking an object
-    # if initBB is not None:
-    #     # grab the new bounding box coordinates of the object
-    #     (success, box) = tracker.update(frame)
-    #     # check to see if the tracking was a success
-    #     if success:
-    #         (x, y, w, h) = [int(v) for v in box]
-    #         cv2.rectangle(frame, (x, y), (x + w, y + h),
-    #                       (0, 0, 255), 2)
-    #     # update the FPS counter
-    #     fps.update()
-    #     fps.stop()
+    if initBB is not None:
+        # grab the new bounding box coordinates of the object
+        (success, box) = tracker.update(frame)
+        # check to see if the tracking was a success
+        if success:
+            (x, y, w, h) = [int(v) for v in box]
+            cv2.rectangle(frame, (x, y), (x + w, y + h),
+                          (255, 0, 0), 2)
+        # update the FPS counter
+        fps.update()
+        fps.stop()
 
-    #     # initialize the set of information we'll be displaying on
-    #     # the frame
-    #     info = [
-    #         ("Tracker", args["tracker"]),
-    #         ("Success", "Yes" if success else "No"),
-    #         ("FPS", "{:.2f}".format(fps.fps())),
-    #     ]
+        # initialize the set of information we'll be displaying on
+        # the frame
+        info = [
+            ("Tracker", args["tracker"]),
+            ("Success", "Yes" if success else "No"),
+            ("FPS", "{:.2f}".format(fps.fps())),
+        ]
 
-    #     # loop over the info tuples and draw them on our frame
-    #     for (i, (k, v)) in enumerate(info):
-    #         text = "{}: {}".format(k, v)
-    #         cv2.putText(frame, text, (10, imgHeight - ((i * 20) + 20)),
-    #                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-    # else:
-    #     initBB = (int(imgWidth*bestBox[1]), int(imgHeight*bestBox[0]), int(
-    #         imgWidth*(bestBox[3]-bestBox[1])), int(imgHeight*(bestBox[2]-bestBox[0])))
-    #     # start OpenCV object tracker using the supplied bounding box
-    #     # coordinates, then start the FPS throughput estimator as well
-    #     tracker.init(frame, initBB)
-    #     fps = FPS().start()
+        # loop over the info tuples and draw them on our frame
+        for (i, (k, v)) in enumerate(info):
+            text = "{}: {}".format(k, v)
+            cv2.putText(frame, text, (10, imgHeight - ((i * 20) + 20)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+    else:
+        if(bestPlate is not None):
+            initBB = (bestPlate[3][0], bestPlate[3][1], bestPlate[3]
+                      [2]-bestPlate[3][0], bestPlate[3][3]-bestPlate[3][1])
+            # start OpenCV object tracker using the supplied bounding box
+            # coordinates, then start the FPS throughput estimator as well
+            tracker.init(frame, initBB)
+            fps = FPS().start()
 
     # cv2.rectangle(frame,(int(imgWidth*bestBox[1]), int(imgHeight*bestBox[0])), (int(imgWidth*bestBox[3]), int(imgHeight*bestBox[2])),(100,100,100),3)
     # write frame to output video file
