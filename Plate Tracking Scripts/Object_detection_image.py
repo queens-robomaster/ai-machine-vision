@@ -25,6 +25,7 @@ import tensorflow as tf
 import sys
 
 
+# colour thresholding
 def isEnemy(plateImg, enemyTeam):
 
     # define the list of boundaries for what defines the colours red and blue
@@ -137,14 +138,20 @@ vis_util.visualize_boxes_and_labels_on_image_array(
     line_thickness=4,
     min_score_thresh=0.60)
 
+
+# this segment of code will obtain the boxes of highest confidence in the frame and check each box to see if it is an enemy, stop looping once highest confidence enemy plate is found
+# remove one dimensionality
 boxes = np.squeeze(boxes)
 
+# loop through each box and pop (remove) any elements less than 80 confidence
 for a in range(0, len(boxes), -1):
     if np.squeeze(scores)[a] < 0.8:
         boxes.pop(a)
     else:
         break
 
+# numboxes is equal to 5 maximum (we will only check the first 5 boxes) or equal to the amount if there is less than 5.
+# this will limit how many boxes we will check with highest confidence
 numboxes = 5 if len(boxes) >= 5 else len(boxes)
 
 if numboxes != 0:
@@ -157,8 +164,10 @@ if numboxes != 0:
         ymax = int(plate[2]*imgHeight)
         print("xmin = %d, ymin = %d\nxmax = %d, ymax = %d" %
               (xmin, ymin, xmax, ymax))
+        # extract the plate as an imageusing its coordinates, will be passed onto isEnemy() to colour threshold
         plateImg = image[ymin:ymax, xmin:xmax]
 
+        # specific to colour thresholding
         if(isEnemy(plateImg, ENEMY_TEAM)):
             print("Is an enemy!")
             break
