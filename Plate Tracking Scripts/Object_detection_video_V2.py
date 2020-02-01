@@ -34,13 +34,7 @@ import time
 # This is needed since the notebook is stored in the object_detection folder.
 sys.path.append("..")
 
-# Import utilites
-
-ENEMY_TEAM = "blue"
-
 # colour thresholding
-
-
 def isEnemy(plateImg, enemyTeam):
 
     # define the list of boundaries for what defines the colours red and blue
@@ -127,8 +121,13 @@ num_detections = detection_graph.get_tensor_by_name('num_detections:0')
 ap = argparse.ArgumentParser()
 ap.add_argument("-v", "--video", type=str, help="path to video")
 ap.add_argument("-t", "--tracker", type=str,
-                default="kcf", help="tracker type")
+                default="mosse", help="tracker type")
+ap.add_argument("-e", "--enemy", type=str,
+                default="blue", help="path to video")
+
 args = vars(ap.parse_args())
+
+ENEMY_TEAM = args["enemy"]
 # OpenCV object tracker dictionary
 OPENCV_OBJECT_TRACKERS = {
     "csrt": cv2.TrackerCSRT_create,
@@ -157,7 +156,6 @@ out = cv2.VideoWriter('test_images/clipBOXED_19.mp4',
 past_centroidX = 10000
 past_centroidY = 10000
 
-frameCount = 0
 
 while(video.isOpened()):
 
@@ -235,24 +233,24 @@ while(video.isOpened()):
 
             # specific to colour thresholding
             if(isEnemy(plateImg, ENEMY_TEAM)):
-                print("Is an enemy!")
+                # print("Is an enemy!")
                 cv2.rectangle(frame, (xmin, ymin), (xmax, ymax),
                               (0, 0, 255), thickness=2)
                 bestPlate = plate
-                # # display pink dot at the specified coordinates for testing
+                # display pink dot at the specified coordinates for testing
                 # cv2.circle(frame, (xmin, ymin), 5, (233, 68, 255), -1)
                 break
             else:
                 bestPlate = None
-                print("Not an enemy")
+                # print("Not an enemy")
 
     # display pink dot at the specified coordinates for testing
     # cv2.circle(image, (xmin, ymin), 5, (233, 68, 255), -1)
 
-  
-
+    # OPENCV OBJECT TRACKING SEGMENT
     # # check to see if we are currently tracking an object
     if initBB is not None:
+        print("")
         # grab the new bounding box coordinates of the object
         (success, box) = tracker.update(frame)
         # check to see if the tracking was a success
@@ -260,6 +258,9 @@ while(video.isOpened()):
             (x, y, w, h) = [int(v) for v in box]
             cv2.rectangle(frame, (x, y), (x + w, y + h),
                           (255, 0, 0), 2)
+        else:
+            initBB = None
+
         # update the FPS counter
         fps.update()
         fps.stop()
@@ -279,6 +280,7 @@ while(video.isOpened()):
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
     else:
         if(bestPlate is not None):
+            print("resetting bounding box to : xmin=%d, ymin=%d, xmax=%d, ymax=%d" % (bestPlate[3][0],bestPlate[3][1],bestPlate[3][2],bestPlate[3][3]))
             initBB = (bestPlate[3][0], bestPlate[3][1], bestPlate[3]
                       [2]-bestPlate[3][0], bestPlate[3][3]-bestPlate[3][1])
             # start OpenCV object tracker using the supplied bounding box
