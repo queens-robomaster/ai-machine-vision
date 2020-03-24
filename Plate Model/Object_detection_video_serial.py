@@ -77,7 +77,7 @@ def isEnemy(plateImg, enemyTeam):
 
 
 # Name of the directory containing the object detection module we're using
-MODEL_NAME = 'inference_graph'
+MODEL_NAME = 'plate_model'
 VIDEO_NAME = 'test_images/clip_19.mp4'
 
 # Grab path to current working directory
@@ -88,7 +88,7 @@ CWD_PATH = os.getcwd()
 PATH_TO_CKPT = os.path.join(CWD_PATH, MODEL_NAME, 'frozen_inference_graph.pb')
 
 # Path to label map file
-PATH_TO_LABELS = os.path.join(CWD_PATH, 'training', 'labelmap.pbtxt')
+PATH_TO_LABELS = os.path.join(CWD_PATH, 'labels', 'labelmap.pbtxt')
 
 # Path to video
 PATH_TO_VIDEO = os.path.join(CWD_PATH, VIDEO_NAME)
