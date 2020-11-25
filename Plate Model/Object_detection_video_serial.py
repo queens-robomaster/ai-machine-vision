@@ -94,7 +94,7 @@ PATH_TO_LABELS = os.path.join(CWD_PATH, 'labels', 'labelmap.pbtxt')
 PATH_TO_VIDEO = os.path.join(CWD_PATH, VIDEO_NAME)
 
 # Number of classes the object detector can identify
-NUM_CLASSES = 2
+NUM_CLASSES = 1
 
 
 # Load the label map.
